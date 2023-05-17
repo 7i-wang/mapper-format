@@ -1,0 +1,247 @@
+<!--
+ * @Descripttion: 
+ * @Author: wanganqi
+ * @Date: 2023-05-05 14:02:55
+ * @LastEditors: wanganqi
+ * @LastEditTime: 2023-05-17 16:35:23
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        .data-format-page {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+        }
+
+        .data-format-page>textarea,
+        .data-format-page>div {
+            width: 50%;
+            height: 100%;
+            word-wrap: break-word;
+            word-break: break-all;
+            moz-user-select: -moz-none;
+            -moz-user-select: none;
+            -o-user-select: none;
+            -khtml-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            overflow-y: auto;
+            border: none;
+            color: #fff;
+            font-size: 18px;
+            padding: 12px;
+        }
+
+        .input-box {
+            background: #1d1e22;
+        }
+
+        .copy-box {
+            background: #444650;
+        }
+
+        .copy-btn {
+            position: fixed;
+            right: 12px;
+            font-size: 20px;
+            color: #fff;
+            padding: 12px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            color: #d7cdcd;
+        }
+
+        /* 滚动条样式 */
+        .scroll {
+            overflow-y: auto;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+            background-color: #d6e1ea;
+            border-radius: 6px;
+        }
+
+        .scroll::-webkit-scrollbar-thumb {
+            background: #c5d4e0;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="data-format-page">
+        <textarea id="initial" autofocus fixed class="input-box scroll"></textarea>
+        <div class="copy-box scroll">
+            <span id="copyBtn" class="copy-btn" onclick="handleCopy()">复制代码</span>
+            <pre id="copyText"></pre>
+        </div>
+    </div>
+
+    <script>
+        // 下划线转驼峰方法
+        const camelCase = (str) => {
+            const arr = str.split("_");
+            for (var i = 1; i < arr.length; i++) {
+                arr[i] =
+                    arr[i].charAt(0).toUpperCase() +
+                    arr[i].substr(1, arr[i].length - 1);
+            }
+            return arr.join("");
+        };
+
+        // 判断类型方法
+        const JudgmenType = (data) => {
+            return Object.prototype.toString.call(data);
+        };
+
+        // 防抖函数
+        const debounce = function (fn, delay = 1000) {
+            if (typeof fn !== 'function') {
+                return false;
+            }
+            let timer;
+            return function () {
+                var _this = this;
+                var args = arguments;
+                if (timer) {
+                    clearTimeout(timer);
+                }
+                timer = setTimeout(function () {
+                    fn.apply(_this, args);
+                }, delay);
+            };
+        }
+
+        // 通过id获取元素
+        const getElementByIdFun = (id) => {
+            return document.getElementById(id)
+        }
+
+        // 基本类型
+        const defaultValue = {
+            "[object Object]": "null",
+            "[object Array]": "[]",
+            "[object Number]": "0",
+            "[object String]": '""',
+        };
+
+        // 通用变量 start
+        let classTempl = [];
+        let classList = [];
+        const initial = getElementByIdFun('initial')
+        const copyBtn = getElementByIdFun('copyBtn')
+        const copyText = getElementByIdFun('copyText')
+        // 通用变量 end
+
+        // 深克隆
+        const deepSearch = (obj, name = "format") => {
+            if (Array.isArray(obj)) {
+                obj.forEach((e, i) => {
+                    deepSearch(e, name);
+                });
+            } else if (typeof obj === "object" && obj !== null) {
+                let keyTempl = "";
+                for (const key in obj) {
+                    if (Object.hasOwnProperty.call(obj, key)) {
+                        deepSearch(obj[key], key);
+                        keyTempl += `'${key}': [
+                            ['${camelCase(key)}', ${setMapper(
+                            obj[key],
+                            key
+                        )}, ${setDefaultValue(obj[key])}]
+                        ],\n`;
+                    }
+                }
+                let objMapperName = `${camelCase(name)}Mapper`;
+                if (classList.indexOf(objMapperName) == -1) {
+                    classList.unshift(objMapperName);
+                    classTempl.unshift(`class ${objMapperName} extends Mappable {
+                        get map() {
+                            return{
+                                ${keyTempl}
+                            }
+                        }
+                    }\n`);
+                }
+            }
+        };
+
+        // 设置默认值
+        const setDefaultValue = (obj) => {
+            let type = JudgmenType(obj);
+            return defaultValue[type] || "null";
+        };
+
+        // 设置mapper方法
+        const setMapper = (obj, name) => {
+            let type = JudgmenType(obj);
+            let isObjectArray =
+                type == "[object Array]" &&
+                obj.length > 0 &&
+                JudgmenType(obj[0]) == "[object Object]";
+            if (type == "[object Object]" || isObjectArray) {
+                return `val => ${camelCase(name)}Mapper.map(val)`;
+            }
+            return "";
+        };
+
+        // 复制
+        const handleCopy = () => {
+            navigator.clipboard
+                .writeText(document.getElementById("copyText").innerText)
+                .then(() => {
+                    console.log('成功')
+                });
+        };
+
+        // 监听input输入
+        window.addEventListener('input', debounce(e => {
+            let val = initial.value
+            classTempl = [];
+            classList = [];
+            if (val) {
+                let obj = JSON.parse(val);
+                deepSearch(obj);
+                copyText.textContent = `import Mappable from './mapper'\n\n${classTempl.join(
+                    ""
+                )}\n\nexport default formatMapper;`;
+            } else {
+                copyText.textContent = "";
+                initial.value = ''
+            }
+        }, 300))
+    </script>
+</body>
+
+</html>
