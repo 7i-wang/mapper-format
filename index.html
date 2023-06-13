@@ -3,7 +3,7 @@
  * @Author: wanganqi
  * @Date: 2023-05-05 14:02:55
  * @LastEditors: wanganqi
- * @LastEditTime: 2023-05-17 16:35:23
+ * @LastEditTime: 2023-06-13 15:07:14
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -107,7 +107,6 @@
             <pre id="copyText"></pre>
         </div>
     </div>
-
     <script>
         // 下划线转驼峰方法
         const camelCase = (str) => {
@@ -167,12 +166,16 @@
         // 深克隆
         const deepSearch = (obj, name = "format") => {
             if (Array.isArray(obj)) {
+                obj.unshift(rebuildObjectArrAttrs(obj));
                 obj.forEach((e, i) => {
                     deepSearch(e, name);
                 });
             } else if (typeof obj === "object" && obj !== null) {
                 let keyTempl = "";
+                let index = 0;
+                let objLen = Object.keys(obj).length;
                 for (const key in obj) {
+                    index++;
                     if (Object.hasOwnProperty.call(obj, key)) {
                         deepSearch(obj[key], key);
                         keyTempl += `'${key}': [
@@ -180,7 +183,7 @@
                             obj[key],
                             key
                         )}, ${setDefaultValue(obj[key])}]
-                        ],\n`;
+                        ],${objLen != index ? "\n" : ""}`;
                     }
                 }
                 let objMapperName = `${camelCase(name)}Mapper`;
@@ -192,7 +195,7 @@
                                 ${keyTempl}
                             }
                         }
-                    }\n`);
+                    }\n\n`);
                 }
             }
         };
@@ -225,6 +228,22 @@
                 });
         };
 
+        // 重组对象数组中的对象使其属性为最大量
+        const rebuildObjectArrAttrs = (arr) => {
+            const obj = {};
+            arr.map((item) => {
+                for (const key in item) {
+                    if (Object.hasOwnProperty.call(item, key)) {
+                        const element = item[key];
+                        if (!obj[key]) {
+                            obj[key] = element;
+                        }
+                    }
+                }
+            });
+            return obj;
+        };
+
         // 监听input输入
         window.addEventListener('input', debounce(e => {
             let val = initial.value
@@ -235,7 +254,7 @@
                 deepSearch(obj);
                 copyText.textContent = `import Mappable from './mapper'\n\n${classTempl.join(
                     ""
-                )}\n\nexport default formatMapper;`;
+                )}export default formatMapper;`;
             } else {
                 copyText.textContent = "";
                 initial.value = ''
