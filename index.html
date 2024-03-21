@@ -3,7 +3,7 @@
  * @Author: wanganqi
  * @Date: 2023-05-05 14:02:55
  * @LastEditors: wanganqi
- * @LastEditTime: 2023-06-13 15:07:14
+ * @LastEditTime: 2024-03-21 13:36:45
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -124,6 +124,11 @@
             return Object.prototype.toString.call(data);
         };
 
+        // 判断是否为对象数组
+        const isObjectArrayFun = (arr) => {
+            return Array.isArray(arr) && arr.length > 0 && arr.every(item => typeof item === 'object');
+        }
+
         // 防抖函数
         const debounce = function (fn, delay = 1000) {
             if (typeof fn !== 'function') {
@@ -167,9 +172,12 @@
         const deepSearch = (obj, name = "format") => {
             if (Array.isArray(obj)) {
                 obj.unshift(rebuildObjectArrAttrs(obj));
-                obj.forEach((e, i) => {
-                    deepSearch(e, name);
-                });
+                let isObjectArray = isObjectArrayFun(obj)
+                if (isObjectArray) {
+                    obj.forEach((e, i) => {
+                        deepSearch(e, name);
+                    });
+                }
             } else if (typeof obj === "object" && obj !== null) {
                 let keyTempl = "";
                 let index = 0;
@@ -209,10 +217,7 @@
         // 设置mapper方法
         const setMapper = (obj, name) => {
             let type = JudgmenType(obj);
-            let isObjectArray =
-                type == "[object Array]" &&
-                obj.length > 0 &&
-                JudgmenType(obj[0]) == "[object Object]";
+            let isObjectArray = isObjectArrayFun(obj)
             if (type == "[object Object]" || isObjectArray) {
                 return `val => ${camelCase(name)}Mapper.map(val)`;
             }
