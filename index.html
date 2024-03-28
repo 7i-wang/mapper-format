@@ -3,7 +3,7 @@
  * @Author: wanganqi
  * @Date: 2023-05-05 14:02:55
  * @LastEditors: wanganqi
- * @LastEditTime: 2024-03-21 13:36:45
+ * @LastEditTime: 2024-03-28 17:20:28
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -109,12 +109,12 @@
     </div>
     <script>
         // 下划线转驼峰方法
-        const camelCase = (str) => {
+        const toCamelCase = (str) => {
             const arr = str.split("_");
             for (var i = 1; i < arr.length; i++) {
                 arr[i] =
                     arr[i].charAt(0).toUpperCase() +
-                    arr[i].substr(1, arr[i].length - 1);
+                    arr[i].substr(1);
             }
             return arr.join("");
         };
@@ -168,10 +168,11 @@
         const copyText = getElementByIdFun('copyText')
         // 通用变量 end
 
-        // 深克隆
         const deepSearch = (obj, name = "format") => {
             if (Array.isArray(obj)) {
-                obj.unshift(rebuildObjectArrAttrs(obj));
+                console.log('数组：' + obj)
+                // obj.unshift(rebuildObjectArrAttrs(obj));
+                // console.log(obj)
                 let isObjectArray = isObjectArrayFun(obj)
                 if (isObjectArray) {
                     obj.forEach((e, i) => {
@@ -183,19 +184,21 @@
                 let index = 0;
                 let objLen = Object.keys(obj).length;
                 for (const key in obj) {
+                    console.log('对象：' + key, obj)
                     index++;
                     if (Object.hasOwnProperty.call(obj, key)) {
                         deepSearch(obj[key], key);
                         keyTempl += `'${key}': [
-                            ['${camelCase(key)}', ${setMapper(
+                            ['${toCamelCase(key)}', ${setMapper(
                             obj[key],
                             key
                         )}, ${setDefaultValue(obj[key])}]
                         ],${objLen != index ? "\n" : ""}`;
                     }
                 }
-                let objMapperName = `${camelCase(name)}Mapper`;
+                let objMapperName = `${toCamelCase(name)}Mapper`;
                 if (classList.indexOf(objMapperName) == -1) {
+                    console.log(classList)
                     classList.unshift(objMapperName);
                     classTempl.unshift(`class ${objMapperName} extends Mappable {
                         get map() {
@@ -219,7 +222,7 @@
             let type = JudgmenType(obj);
             let isObjectArray = isObjectArrayFun(obj)
             if (type == "[object Object]" || isObjectArray) {
-                return `val => ${camelCase(name)}Mapper.map(val)`;
+                return `val => ${toCamelCase(name)}Mapper.map(val)`;
             }
             return "";
         };
@@ -235,6 +238,7 @@
 
         // 重组对象数组中的对象使其属性为最大量
         const rebuildObjectArrAttrs = (arr) => {
+            if (!arr.length) return;
             const obj = {};
             arr.map((item) => {
                 for (const key in item) {
