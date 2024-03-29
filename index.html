@@ -3,7 +3,7 @@
  * @Author: wanganqi
  * @Date: 2023-05-05 14:02:55
  * @LastEditors: wanganqi
- * @LastEditTime: 2024-03-28 17:20:28
+ * @LastEditTime: 2024-03-29 17:46:02
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -163,7 +163,6 @@
         // 通用变量 start
         let classTempl = [];
         let classList = [];
-        let classStatusList = []
         const initial = getElementByIdFun('initial')
         const copyBtn = getElementByIdFun('copyBtn')
         const copyText = getElementByIdFun('copyText')
@@ -171,11 +170,10 @@
 
         const deepSearch = (obj, name = "format") => {
             if (Array.isArray(obj)) {
-                // obj.unshift(rebuildObjectArrAttrs(obj));
                 let isObjectArray = isObjectArrayFun(obj)
                 if (isObjectArray) {
-                    obj.forEach((e, i) => {
-                        deepSearch(e, name);
+                    obj.forEach(item => {
+                        deepSearch(item, name);
                     });
                 }
             } else if (typeof obj === "object" && obj !== null) {
@@ -196,35 +194,47 @@
                 }
                 let objMapperName = `${toCamelCase(name)}Mapper`;
                 if (classList.indexOf(objMapperName) == -1) {
-                    classList.push(objMapperName);
-                    classTempl.push(`class ${objMapperName} extends Mappable {
+                    let template = `class ${objMapperName} extends Mappable {
                         get map() {
                             return{
                                 ${keyTempl}
                             }
                         }
-                    }\n\n`);
-                }
-                else {
-                    let name = objMapperName.replace('Mapper', '')
-                    console.log(objMapperName)
-                    let index = classList.indexOf(objMapperName)
-                    classStatusList.forEach(obj => {
-                        Object.keys(obj).forEach(key => {
-                            const value = obj[key];
-                            console.log(name, key, value)
-                            if (name == key && value) {
-                                console.log(keyTempl)
-                                classTempl[index] = `class ${objMapperName} extends Mappable {
-                                    get map() {
-                                        return{
-                                            ${keyTempl}
-                                        }
-                                    }
-                                }\n\n`
+                    }\n\n`
+                    // 使formatMapper一直在最上方
+                    const formatMapperIndex = classList.indexOf('formatMapper');
+                    if (formatMapperIndex === -1) {
+                        classList = [objMapperName, ...classList]
+                        classTempl = [template, ...classTempl]
+                    } else {
+                        classList = [
+                            classList[formatMapperIndex],
+                            ...classList.filter((_, index) => index != formatMapperIndex),
+                            objMapperName
+                        ];
+                        classTempl = [
+                            classTempl[formatMapperIndex],
+                            ...classTempl.filter((_, index) => index != formatMapperIndex),
+                            template
+                        ];
+                    }
+                } else {
+                    // 此处为避免在对象数组中相同key，值不同情况，保证正常输出
+                    const index = classList.indexOf(objMapperName)
+                    const regex = /return\s*{([^}]*)}/;
+                    const match = classTempl[index].match(regex);
+                    const originalContent = match[1].trim();
+                    const originalLength = originalContent.length
+                    const newLength = keyTempl.length
+                    if (newLength > originalLength) {
+                        classTempl[index] = `class ${objMapperName} extends Mappable {
+                            get map() {
+                                return{
+                                    ${keyTempl}
+                                }
                             }
-                        });
-                    })
+                        }\n\n`
+                    }
                 }
             }
         };
@@ -240,9 +250,6 @@
             let type = JudgmenType(obj);
             let isObjectArray = isObjectArrayFun(obj)
             if (type == "[object Object]" || isObjectArray) {
-                if (!classStatusList.some(item => item.hasOwnProperty(name))) {
-                    classStatusList.push({ [name]: true });
-                }
                 return `val => ${toCamelCase(name)}Mapper.map(val)`;
             }
             return "";
@@ -279,7 +286,6 @@
             let val = initial.value
             classTempl = [];
             classList = [];
-            classStatusList = []
             if (val) {
                 let obj = JSON.parse(val);
                 deepSearch(obj);
